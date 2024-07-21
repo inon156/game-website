@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>משחק זיכרון עיצוב אתרים</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+        .container {
+            max-width: 400px;
+            padding: 20px;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h1, h2, h3 {
+            text-align: center;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .card {
+            width: 70px;
+            height: 70px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            background-color: #e0e0e0;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .card.flipped {
+            background-color: #b3e0ff;
+        }
+        .prize-wheel {
+            text-align: center;
+        }
+        #wheel {
+            max-width: 300px;
+            margin: 20px auto;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>האתר שלי</h1>
+        <div id="memory-game">
+            <h2>משחק זיכרון עיצוב אתרים</h2>
+            <div class="grid" id="card-grid"></div>
+        </div>
+        <div id="prize-wheel" style="display: none;">
+            <h3>כל הכבוד! סיימת את המשחק!</h3>
+            <p>סובב את גלגל המזל לקבלת פרס!</p>
+            <svg id="wheel" width="300" height="300" viewBox="0 0 100 100"></svg>
+            <button id="spin-button">סובב את הגלגל</button>
+            <div id="prize-result"></div>
+        </div>
+    </div>
+
+    <script>
+        const webDesignSymbols = ['🖥️', '🎨', '📱', '🔗', '📄', '🖊️', '🖱️', '💾'];
+        const prizes = [
+            'שעה של ייעוץ חינם',
+            'הנחה של 10% על הפרויקט הבא',
+            'עיצוב לוגו חינם',
+            'דוח SEO מקיף',
+            'שדרוג חינם לחבילת האחסון'
+        ];
+
+        let cards = [];
+        let flipped = [];
+        let solved = [];
+        let disabled = false;
+
+        function initializeGame() {
+            const cardGrid = document.getElementById('card-grid');
+            cardGrid.innerHTML = '';
+            cards = [...webDesignSymbols, ...webDesignSymbols]
+                .sort(() => Math.random() - 0.5)
+                .map((symbol, index) => ({ id: index, symbol }));
+
+            cards.forEach(card => {
+                const cardElement = document.createElement('button');
+                cardElement.className = 'card';
+                cardElement.dataset.id = card.id;
+                cardElement.textContent = '?';
+                cardElement.addEventListener('click', () => handleCardClick(card.id));
+                cardGrid.appendChild(cardElement);
+            });
+        }
+
+        function handleCardClick(id) {
+            if (disabled) return;
+            const card = cards.find(c => c.id === id);
+            if (flipped.length === 0) {
+                flipCard(card);
+                flipped.push(card);
+            } else if (flipped.length === 1) {
+                if (id !== flipped[0].id) {
+                    flipCard(card);
+                    flipped.push(card);
+                    checkForMatch();
+                }
+            }
+        }
+
+        function flipCard(card) {
+            const cardElement = document.querySelector(`.card[data-id="${card.id}"]`);
+            cardElement.textContent = card.symbol;
+            cardElement.classList.add('flipped');
+        }
+
+        function unflipCard(card) {
+            const cardElement = document.querySelector(`.card[data-id="${card.id}"]`);
+            cardElement.textContent = '?';
+            cardElement.classList.remove('flipped');
+        }
+
+        function checkForMatch() {
+            disabled = true;
+            const [first, second] = flipped;
+            if (first.symbol === second.symbol) {
+                solved.push(first.symbol);
+                flipped = [];
+                disabled = false;
+                if (solved.length === webDesignSymbols.length) {
+                    setTimeout(() => {
+                        document.getElementById('memory-game').style.display = 'none';
+                        document.getElementById('prize-wheel').style.display = 'block';
+                        initializePrizeWheel();
+                    }, 1000);
+                }
+            } else {
+                setTimeout(() => {
+                    unflipCard(first);
+                    unflipCard(second);
+                    flipped = [];
+                    disabled = false;
+                }, 1000);
+            }
+        }
+
+        function initializePrizeWheel() {
+            const wheel = document.getElementById('wheel');
+            const totalAngle = 360;
+            const anglePerPrize = totalAngle / prizes.length;
+
+            prizes.forEach((prize, index) => {
+                const startAngle = index * anglePerPrize;
+                const endAngle = (index + 1) * anglePerPrize;
+
+                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                const x1 = 50 + 50 * Math.cos((startAngle * Math.PI) / 180);
+                const y1 = 50 + 50 * Math.sin((startAngle * Math.PI) / 180);
+                const x2 = 50 + 50 * Math.cos((endAngle * Math.PI) / 180);
+                const y2 = 50 + 50 * Math.sin((endAngle * Math.PI) / 180);
+
+                path.setAttribute('d', `M50 50 L${x1} ${y1} A50 50 0 0 1 ${x2} ${y2} Z`);
+                path.setAttribute('fill', `hsl(${index * 360 / prizes.length}, 70%, 70%)`);
+
+                const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                text.setAttribute('x', '50');
+                text.setAttribute('y', '50');
+                text.setAttribute('text-anchor', 'middle');
+                text.setAttribute('transform', `rotate(${startAngle + anglePerPrize / 2} 50 50) translate(0, -30)`);
+                text.setAttribute('fill', 'black');
+                text.setAttribute('font-size', '4');
+                text.textContent = prize;
+
+                wheel.appendChild(path);
+                wheel.appendChild(text);
+            });
+
+            const centerCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            centerCircle.setAttribute('cx', '50');
+            centerCircle.setAttribute('cy', '50');
+            centerCircle.setAttribute('r', '5');
+            centerCircle.setAttribute('fill', 'black');
+
+            const pointer = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+            pointer.setAttribute('points', '50,0 45,-10 55,-10');
+            pointer.setAttribute('fill', 'black');
+
+            wheel.appendChild(centerCircle);
+            wheel.appendChild(pointer);
+
+            document.getElementById('spin-button').addEventListener('click', spinWheel);
+        }
+
+        function spinWheel() {
+            const wheel = document.getElementById('wheel');
+            const button = document.getElementById('spin-button');
+            const resultDiv = document.getElementById('prize-result');
+
+            button.disabled = true;
+            resultDiv.textContent = '';
+
+            const rotation = 1800 + Math.floor(Math.random() * 360);
+            wheel.style.transition = 'transform 5s cubic-bezier(0.25, 0.1, 0.25, 1)';
+            wheel.style.transform = `rotate(${rotation}deg)`;
+
+            setTimeout(() => {
+                const prizeIndex = Math.floor(((rotation % 360) / 360) * prizes.length);
+                const selectedPrize = prizes[prizeIndex];
+                resultDiv.textContent = `זכית ב: ${selectedPrize}!`;
+                button.disabled = false;
+            }, 5000);
+        }
+
+        initializeGame();
+    </script>
+</body>
+</html>
